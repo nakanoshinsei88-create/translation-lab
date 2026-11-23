@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRANSLATION LAB | mRNA加工・翻訳 動的モデル</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* --- [デザイン変数・基本レイアウトCSS] ここから --- */
+    :root {
+      --bg-base: #060d12;
+      --bg-surface: rgba(13, 25, 34, 0.76);
+      --bg-elevated: rgba(24, 42, 56, 0.68);
+      --border-subtle: rgba(148, 163, 184, 0.16);
+      --border-accent: rgba(52, 211, 153, 0.48);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent-emerald: #34d399;
+      --accent-cyan: #38bdf8;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --accent-violet: #a78bfa;
+      --base-a: #38bdf8;
+      --base-u: #f472b6;
+      --base-g: #34d399;
+      --base-c: #fbbf24;
+      --font-sans: 'Noto Sans JP', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(52, 211, 153, 0.12), transparent 42%),
+        radial-gradient(circle at 88% 82%, rgba(251, 191, 36, 0.10), transparent 44%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+      overflow-x: hidden;
+    }
+
+    .app-shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 20px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    /* --- [デザイン変数・基本レイアウトCSS] ここまで --- */
+
+    /* --- [ヘッダー・ステージ・操作パネルCSS] ここから --- */
+    .lab-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 22px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      backdrop-filter: blur(14px);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan));
+      display: grid;
+      place-items: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      color: #060d12;
+      box-shadow: 0 0 18px rgba(52, 211, 153, 0.35);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .phase-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid var(--border-accent);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent-emerald);
+    }
+
+    .phase-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .stage-card {
+      position: relative;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      overflow: hidden;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 420px;
+      background: linear-gradient(180deg, rgba(6, 13, 18, 0.94), rgba(13, 25, 34, 0.88));
+    }
+
+    #simCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--border-subtle);
+      background: rgba(6, 13, 18, 0.6);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 860px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      .canvas-wrap {
+        height: 340px;
+      }
+    }
+
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 18px 20px;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-heading {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 9px 15px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--accent-emerald);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #059669, #0284c7);
+      border-color: rgba(52, 211, 153, 0.55);
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 13px;
+    }
+
+    .slider-input {
+      accent-color: var(--accent-emerald);
+      width: 150px;
+      cursor: pointer;
+    }
+
+    .select-input {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+    }
+
+    .monitor-box {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: rgba(6, 13, 18, 0.72);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .mon-row {
+      white-space: nowrap;
+    }
+
+    .mon-label {
+      display: inline-block;
+      width: 104px;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 11px;
+    }
+
+    .amino-chain {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      vertical-align: middle;
+    }
+
+    .amino-chip {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #060d12;
+      background: var(--accent-emerald);
+    }
+
+    .guide-text {
+      font-size: 13px;
+      color: #cbd5e1;
+      background: rgba(52, 211, 153, 0.07);
+      border-left: 3px solid var(--accent-emerald);
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .toast-notice {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: rgba(13, 25, 34, 0.95);
+      border: 1px solid var(--border-accent);
+      color: var(--text-primary);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 50;
+    }
+
+    .toast-notice.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    /* --- [ヘッダー・ステージ・操作パネルCSS] ここまで --- */
+
+    /* === [新規機能追加エリアCSS] 新しいCSSブロックはこの真上に貼り付け === */
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- --- [ヘッダーHTML] ここから --- -->
+    <header class="lab-header">
+      <div class="brand-group">
+        <div class="brand-badge">PRO</div>
+        <div>
+          <h1 class="brand-title">mRNA加工・翻訳（タンパク質合成）動的モデル</h1>
+          <p class="brand-sub">スプライシング・核外輸送からリボソームでのアミノ酸鎖合成までを可視化</p>
+        </div>
+      </div>
+      <div class="phase-pill" id="phaseBadge">
+        <span class="phase-dot"></span>
+        <span id="phaseText">待機中：核内のmRNA前駆体</span>
+      </div>
+    </header>
+    <!-- --- [ヘッダーHTML] ここまで --- -->
+
+    <!-- --- [メインシミュレーションステージHTML] ここから --- -->
+    <section class="stage-card">
+      <div class="canvas-wrap">
+        <canvas id="simCanvas"></canvas>
+      </div>
+      <div class="legend-bar">
+        <span class="legend-item"><span class="swatch" style="background: var(--accent-cyan);"></span>エキソン（翻訳される領域）</span>
+        <span class="legend-item"><span class="swatch" style="background: var(--accent-rose);"></span>イントロン（切除される領域）</span>
+        <span class="legend-item"><span class="swatch" style="background: var(--accent-amber);"></span>5'キャップ / ポリAテール</span>
+        <span class="legend-item"><span class="swatch" style="background: var(--accent-violet);"></span>リボソーム</span>
+        <span class="legend-item"><span class="swatch" style="background: var(--accent-emerald);"></span>tRNA / アミノ酸</span>
+      </div>
+    </section>
+    <!-- --- [メインシミュレーションステージHTML] ここまで --- -->
+
+    <!-- --- [コントロール＆翻訳モニターHTML] ここから --- -->
+    <section class="dashboard-grid">
+      <div class="panel-card">
+        <div class="panel-heading">コントロールパネル</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btnTogglePlay">▶ 加工・翻訳を開始</button>
+          <button class="btn" id="btnStep">1ステップ進める</button>
+          <button class="btn" id="btnJumpTranslate">翻訳から見る</button>
+          <button class="btn" id="btnReset">リセット</button>
+        </div>
+        <div class="control-row">
+          <label for="speedRange">再生速度：<strong id="speedValue">1.0x</strong></label>
+          <input class="slider-input" type="range" id="speedRange" min="0.4" max="2.5" step="0.1" value="1.0">
+        </div>
+        <div class="control-row">
+          <label for="presetSelect">mRNA配列モデル：</label>
+          <select class="select-input" id="presetSelect">
+            <option value="normal">正常モデル（Met-Gly-Ser-Leu-Tyr-Stop）</option>
+            <option value="alt">別ペプチドモデル（Met-Ala-Lys-Val-Pro-Stop）</option>
+            <option value="nonsense">ナンセンス変異（途中で終止コドン出現）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-heading">リアルタイム翻訳モニター</div>
+        <div class="monitor-box">
+          <div class="mon-row"><span class="mon-label">成熟mRNA</span><span id="monMrna">---</span></div>
+          <div class="mon-row"><span class="mon-label">現在のコドン</span><span id="monCodon">---</span></div>
+          <div class="mon-row"><span class="mon-label">合成アミノ酸鎖</span><span class="amino-chain" id="monAmino">（まだ合成されていません）</span></div>
+        </div>
+        <div class="guide-text" id="guideText">
+          「加工・翻訳を開始」を押すと、核内で不要なイントロンが切り取られ（スプライシング）、核膜孔を通って細胞質のリボソームでタンパク質合成が始まります。
+        </div>
+      </div>
+    </section>
+    <!-- --- [コントロール＆翻訳モニターHTML] ここまで --- -->
+
+    <!-- === [新規機能追加エリアHTML] 新しいHTMLブロックはこの真上に貼り付け === -->
+  </div>
+
+  <div class="toast-notice" id="toastNotice"></div>
+
+<!-- === [PART 1 ここまで] この真下に PART 2 を貼り付け === -->
+    <!-- === [PART 2 ここから] PART 1 の真下に貼り付け === -->
+  <script>
+    // --- [コドン表・mRNA配列データJS] ここから ---
+    const CODON_TABLE = {
+      AUG: { code: 'Met', jp: 'メチオニン（開始）', color: '#38bdf8', isStop: false },
+      GGU: { code: 'Gly', jp: 'グリシン', color: '#34d399', isStop: false },
+      UCU: { code: 'Ser', jp: 'セリン', color: '#a78bfa', isStop: false },
+      CUU: { code: 'Leu', jp: 'ロイシン', color: '#fbbf24', isStop: false },
+      UAC: { code: 'Tyr', jp: 'チロシン', color: '#f472b6', isStop: false },
+      GCU: { code: 'Ala', jp: 'アラニン', color: '#2dd4bf', isStop: false },
+      AAA: { code: 'Lys', jp: 'リシン', color: '#60a5fa', isStop: false },
+      GUU: { code: 'Val', jp: 'バリン', color: '#4ade80', isStop: false },
+      CCU: { code: 'Pro', jp: 'プロリン', color: '#facc15', isStop: false },
+      UAA: { code: 'Stop', jp: '終止コドン', color: '#fb7185', isStop: true },
+      UAG: { code: 'Stop', jp: '終止コドン（変異）', color: '#fb7185', isStop: true },
+      UGA: { code: 'Stop', jp: '終止コドン', color: '#fb7185', isStop: true }
+    };
+
+    const BASE_COLORS = {
+      A: '#38bdf8',
+      U: '#f472b6',
+      G: '#34d399',
+      C: '#fbbf24'
+    };
+
+    const PRESETS = {
+      normal: {
+        name: '正常モデル（Met-Gly-Ser-Leu-Tyr-Stop）',
+        exon1: 'AUGGGUUCU',
+        intron: 'GUAAGUCUAAG',
+        exon2: 'CUUUACUAA',
+        codons: 'AUG,GGU,UCU,CUU,UAC,UAA'.split(',')
+      },
+      alt: {
+        name: '別ペプチドモデル（Met-Ala-Lys-Val-Pro-Stop）',
+        exon1: 'AUGGCUAAA',
+        intron: 'GUAGCAUCCAG',
+        exon2: 'GUUCCUUGA',
+        codons: 'AUG,GCU,AAA,GUU,CCU,UGA'.split(',')
+      },
+      nonsense: {
+        name: 'ナンセンス変異（途中で終止コドン出現）',
+        exon1: 'AUGGGUUAG',
+        intron: 'GUAAGUCUAAG',
+        exon2: 'CUUUACUAA',
+        codons: 'AUG,GGU,UAG,CUU,UAC,UAA'.split(',')
+      }
+    };
+
+    const TIMELINE = {
+      spliceEnd: 2.6,
+      exportEnd: 4.4
+    };
+
+    const state = {
+      presetKey: 'normal',
+      isPlaying: false,
+      speed: 1.0,
+      progress: 0,
+      phase: 'idle',
+      time: 0,
+      particles: [],
+      toastTimer: null
+    };
+
+    function getCurrentPreset() {
+      return PRESETS[state.presetKey] || PRESETS.normal;
+    }
+
+    function getAnticodon(codon) {
+      let anti = '';
+      for (let i = 0; i < codon.length; i++) {
+        const ch = codon.charAt(i);
+        if (ch === 'A') anti += 'U';
+        else if (ch === 'U') anti += 'A';
+        else if (ch === 'G') anti += 'C';
+        else if (ch === 'C') anti += 'G';
+        else anti += 'N';
+      }
+      return anti;
+    }
+
+    function getStopCodonIndex(preset) {
+      for (let i = 0; i < preset.codons.length; i++) {
+        const info = CODON_TABLE[preset.codons[i]];
+        if (info && info.isStop) return i;
+      }
+      return preset.codons.length - 1;
+    }
+
+    function getMaxProgress() {
+      const preset = getCurrentPreset();
+      const stopIdx = getStopCodonIndex(preset);
+      return TIMELINE.exportEnd + stopIdx + 1.4;
+    }
+
+    function getCurrentCodonIndex() {
+      if (state.progress < TIMELINE.exportEnd) return -1;
+      const preset = getCurrentPreset();
+      const stopIdx = getStopCodonIndex(preset);
+      const raw = Math.floor(state.progress - TIMELINE.exportEnd);
+      if (raw < 0) return -1;
+      if (raw > stopIdx) return stopIdx;
+      return raw;
+    }
+
+    function computePhase() {
+      const preset = getCurrentPreset();
+      const stopIdx = getStopCodonIndex(preset);
+      if (state.progress <= 0.05) return 'idle';
+      if (state.progress < TIMELINE.spliceEnd) return 'splicing';
+      if (state.progress < TIMELINE.exportEnd) return 'export';
+      if (state.progress < TIMELINE.exportEnd + stopIdx + 0.85) return 'translation';
+      return 'completed';
+    }
+    // --- [コドン表・mRNA配列データJS] ここまで ---
+
+    // --- [UIモニター更新・トースト通知JS] ここから ---
+    const els = {
+      canvas: document.getElementById('simCanvas'),
+      phaseBadge: document.getElementById('phaseBadge'),
+      phaseText: document.getElementById('phaseText'),
+      btnTogglePlay: document.getElementById('btnTogglePlay'),
+      btnStep: document.getElementById('btnStep'),
+      btnJumpTranslate: document.getElementById('btnJumpTranslate'),
+      btnReset: document.getElementById('btnReset'),
+      speedRange: document.getElementById('speedRange'),
+      speedValue: document.getElementById('speedValue'),
+      presetSelect: document.getElementById('presetSelect'),
+      monMrna: document.getElementById('monMrna'),
+      monCodon: document.getElementById('monCodon'),
+      monAmino: document.getElementById('monAmino'),
+      guideText: document.getElementById('guideText'),
+      toastNotice: document.getElementById('toastNotice')
+    };
+
+    function showToast(message) {
+      if (!els.toastNotice) return;
+      els.toastNotice.textContent = message;
+      els.toastNotice.classList.add('show');
+      if (state.toastTimer) clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(function() {
+        els.toastNotice.classList.remove('show');
+      }, 2200);
+    }
+
+    function updateMonitorUI() {
+      const preset = getCurrentPreset();
+      const codonIdx = getCurrentCodonIndex();
+      const stopIdx = getStopCodonIndex(preset);
+
+      // 成熟mRNAのコドン表示
+      if (els.monMrna) {
+        if (state.progress < TIMELINE.spliceEnd * 0.75) {
+          els.monMrna.innerHTML = '<span style="color:#94a3b8;">（スプライシング前：エキソン＋イントロン混在）</span>';
+        } else {
+          let html = '<span style="color:#fbbf24;margin-right:4px;">5\'Cap-</span>';
+          for (let i = 0; i < preset.codons.length; i++) {
+            const c = preset.codons[i];
+            const active = i === codonIdx && state.phase === 'translation';
+            const style = active
+              ? 'background:rgba(52,211,153,0.28);color:#f8fafc;border-radius:4px;padding:1px 4px;font-weight:700;'
+              : 'color:#cbd5e1;padding:1px 3px;';
+            html += '<span style="' + style + '">' + c + '</span> ';
+          }
+          html += '<span style="color:#fbbf24;">-PolyA</span>';
+          els.monMrna.innerHTML = html;
+        }
+      }
+
+      // 現在のコドン＆アンチコドン表示
+      if (els.monCodon) {
+        if (codonIdx >= 0 && codonIdx < preset.codons.length) {
+          const c = preset.codons[codonIdx];
+          const info = CODON_TABLE[c];
+          const anti = getAnticodon(c);
+          els.monCodon.innerHTML =
+            '<span style="color:#34d399;font-weight:700;">' + c + '</span>' +
+            ' (tRNA: ' + anti + ') → ' +
+            '<span style="color:' + (info ? info.color : '#f1f5f9') + ';font-weight:700;">' +
+            (info ? info.code + ' / ' + info.jp : '不明') + '</span>';
+        } else {
+          els.monCodon.textContent = '（リボソーム結合待ち）';
+        }
+      }
+
+      // 合成されたアミノ酸鎖のチップ表示
+      if (els.monAmino) {
+        if (codonIdx < 0) {
+          els.monAmino.innerHTML = '<span style="color:#64748b;">（まだ合成されていません）</span>';
+        } else {
+          const builtLimit = Math.min(codonIdx + 1, stopIdx);
+          let chips = '';
+          for (let i = 0; i < builtLimit; i++) {
+            const c = preset.codons[i];
+            const info = CODON_TABLE[c];
+            if (info && !info.isStop) {
+              chips += '<span class="amino-chip" style="background:' + info.color + ';">' + info.code + '</span>';
+            }
+          }
+          if (state.phase === 'completed') {
+            chips += '<span class="amino-chip" style="background:#fb7185;color:#fff;">完了</span>';
+          }
+          els.monAmino.innerHTML = chips || '<span style="color:#64748b;">（合成開始）</span>';
+        }
+      }
+    }
+
+    function updatePhaseUI() {
+      state.phase = computePhase();
+      let label = '待機中：核内のmRNA前駆体';
+      let guide = '「加工・翻訳を開始」を押すと、核内で不要なイントロンが切り取られ（スプライシング）、核膜孔を通って細胞質のリボソームでタンパク質合成が始まります。';
+      let color = '#34d399';
+
+      if (state.phase === 'splicing') {
+        label = '第1段階：RNAプロセシング（スプライシング）';
+        guide = '核内で不要なイントロン（赤）が切り離され、エキソン（青）同士が連結します。同時に5\'キャップとポリAテールが付加され成熟mRNAになります。';
+        color = '#fbbf24';
+      } else if (state.phase === 'export') {
+        label = '第2段階：核外輸送（核膜孔を通過）';
+        guide = '加工を終えた成熟mRNAが、核膜に開いた「核膜孔」を通って核内から細胞質へと移動します。';
+        color = '#38bdf8';
+      } else if (state.phase === 'translation') {
+        label = '第3段階：翻訳（リボソームでの合成）';
+        guide = 'リボソームがmRNAを3塩基（コドン）ずつ読み取り、相補的なtRNAが運んできたアミノ酸を次々とペプチド結合させています。';
+        color = '#a78bfa';
+      } else if (state.phase === 'completed') {
+        const isNonsense = state.presetKey === 'nonsense';
+        label = '第4段階：翻訳完了（ポリペプチド鎖の遊離）';
+        guide = isNonsense
+          ? '途中のナンセンス変異（UAG）で終止コドンが出現したため、短い未完成のペプチド鎖のまま合成が終了しました。'
+          : '終止コドンに到達しました。完成したポリペプチド鎖（タンパク質のもと）がリボソームから離れ、立体構造へと折りたたまれます。';
+        color = '#fb7185';
+      }
+
+      if (els.phaseText) els.phaseText.textContent = label;
+      if (els.phaseBadge) els.phaseBadge.style.color = color;
+      if (els.guideText) els.guideText.textContent = guide;
+      if (els.btnTogglePlay) {
+        if (state.phase === 'completed') {
+          els.btnTogglePlay.textContent = '↻ もう一度再生';
+        } else {
+          els.btnTogglePlay.textContent = state.isPlaying ? '⏸ 一時停止' : '▶ 加工・翻訳を開始';
+        }
+      }
+      updateMonitorUI();
+    }
+    // --- [UIモニター更新・トースト通知JS] ここまで ---
+
+    // --- [操作パネル・イベント制御JS] ここから ---
+    function resetSimulation(notify) {
+      state.isPlaying = false;
+      state.progress = 0;
+      updatePhaseUI();
+      if (notify) showToast('シミュレーションをリセットしました');
+    }
+
+    function togglePlay() {
+      if (state.phase === 'completed') {
+        state.progress = 0;
+      }
+      state.isPlaying = !state.isPlaying;
+      updatePhaseUI();
+    }
+
+    function stepForward() {
+      state.isPlaying = false;
+      const maxP = getMaxProgress();
+      if (state.progress < TIMELINE.spliceEnd) {
+        state.progress = TIMELINE.spliceEnd;
+      } else if (state.progress < TIMELINE.exportEnd) {
+        state.progress = TIMELINE.exportEnd + 0.1;
+      } else if (state.progress < maxP) {
+        state.progress = Math.min(maxP, Math.floor(state.progress) + 1.1);
+      } else {
+        state.progress = 0;
+      }
+      updatePhaseUI();
+    }
+
+    function jumpToTranslation() {
+      state.isPlaying = false;
+      state.progress = TIMELINE.exportEnd + 0.05;
+      updatePhaseUI();
+      showToast('細胞質での翻訳ステップへ移動しました');
+    }
+
+    if (els.btnTogglePlay) els.btnTogglePlay.addEventListener('click', togglePlay);
+    if (els.btnStep) els.btnStep.addEventListener('click', stepForward);
+    if (els.btnJumpTranslate) els.btnJumpTranslate.addEventListener('click', jumpToTranslation);
+    if (els.btnReset) {
+      els.btnReset.addEventListener('click', function() {
+        resetSimulation(true);
+      });
+    }
+    if (els.speedRange) {
+      els.speedRange.addEventListener('input', function(e) {
+        state.speed = parseFloat(e.target.value);
+        if (els.speedValue) els.speedValue.textContent = state.speed.toFixed(1) + 'x';
+      });
+    }
+    if (els.presetSelect) {
+      els.presetSelect.addEventListener('change', function(e) {
+        state.presetKey = e.target.value;
+        resetSimulation(false);
+        showToast('配列を変更しました：' + getCurrentPreset().name);
+      });
+    }
+    // --- [操作パネル・イベント制御JS] ここまで ---
+
+// === [PART 2 ここまで] この真下に PART 3 を貼り付け ===
+<!-- === [PART 3 ここから] PART 2 の真下に貼り付け === -->
+    // --- [Canvas初期化・背景浮遊粒子JS] ここから ---
+    const ctx = els.canvas ? els.canvas.getContext('2d') : null;
+    const AMINO_BG = 'Met,Gly,Ser,Leu,Ala,Val'.split(',');
+    let canvasWidth = 900;
+    let canvasHeight = 420;
+
+    function initParticles() {
+      state.particles = [];
+      for (let i = 0; i < 16; i++) {
+        state.particles.push({
+          x: Math.random() * canvasWidth,
+          y: canvasHeight * 0.45 + Math.random() * (canvasHeight * 0.55),
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          label: AMINO_BG[i % AMINO_BG.length],
+          r: 13 + Math.random() * 4
+        });
+      }
+    }
+
+    function resizeCanvas() {
+      if (!els.canvas || !ctx) return;
+      const rect = els.canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvasWidth = Math.max(320, rect.width);
+      canvasHeight = Math.max(300, rect.height);
+      els.canvas.width = canvasWidth * dpr;
+      els.canvas.height = canvasHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (state.particles.length === 0) initParticles();
+    }
+
+    function drawCompartments() {
+      const memY = canvasHeight * 0.36;
+      const poreW = 76;
+      const midX = canvasWidth * 0.5;
+
+      // 核内エリアの淡い背景
+      ctx.save();
+      const nucGrad = ctx.createLinearGradient(0, 0, 0, memY);
+      nucGrad.addColorStop(0, 'rgba(56, 189, 248, 0.12)');
+      nucGrad.addColorStop(1, 'rgba(56, 189, 248, 0.03)');
+      ctx.fillStyle = nucGrad;
+      ctx.fillRect(0, 0, canvasWidth, memY);
+
+      // 核膜（左右に分けて中央に核膜孔を開ける）
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash(Array(2).fill(8));
+      ctx.beginPath();
+      ctx.moveTo(0, memY);
+      ctx.lineTo(midX - poreW * 0.5, memY);
+      ctx.moveTo(midX + poreW * 0.5, memY);
+      ctx.lineTo(canvasWidth, memY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 核膜孔リング
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(midX - poreW * 0.5 - 6, memY - 7, 12, 14, 4);
+      ctx.roundRect(midX + poreW * 0.5 - 6, memY - 7, 12, 14, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // エリアラベル
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.78)';
+      ctx.font = 'bold 11px Noto Sans JP, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('核内（RNAプロセシング）', 16, 22);
+      ctx.fillText('細胞質（リボソームでの翻訳）', 16, memY + 22);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('核膜孔', midX, memY - 12);
+      ctx.restore();
+    }
+
+    function drawCytoplasmParticles() {
+      const memY = canvasHeight * 0.38;
+      for (let i = 0; i < state.particles.length; i++) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < -20) p.x = canvasWidth + 20;
+        if (p.x > canvasWidth + 20) p.x = -20;
+        if (p.y < memY + 14) p.vy = Math.abs(p.vy);
+        if (p.y > canvasHeight - 14) p.vy = -Math.abs(p.vy);
+
+        ctx.save();
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = '#34d399';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#060d12';
+        ctx.font = 'bold 9px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.label, p.x, p.y);
+        ctx.restore();
+      }
+    }
+    // --- [Canvas初期化・背景浮遊粒子JS] ここまで ---
+
+    // --- [スプライシング・核外輸送・翻訳アニメーション描画JS] ここから ---
+    function drawSegmentBox(x, y, w, h, fill, stroke, text) {
+      ctx.save();
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 11px Noto Sans JP, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + w * 0.5, y + h * 0.5);
+      ctx.restore();
+    }
+
+    function drawSplicingAndExport() {
+      const midX = canvasWidth * 0.5;
+      const nucY = canvasHeight * 0.19;
+      const cytoY = canvasHeight * 0.72;
+      const exW = Math.min(130, canvasWidth * 0.17);
+      const inW = Math.min(120, canvasWidth * 0.16);
+      const boxH = 28;
+
+      const spliceRatio = Math.min(1, Math.max(0, state.progress / TIMELINE.spliceEnd));
+      const exportRatio = state.progress <= TIMELINE.spliceEnd
+        ? 0
+        : Math.min(1, (state.progress - TIMELINE.spliceEnd) / (TIMELINE.exportEnd - TIMELINE.spliceEnd));
+
+      const easeExport = exportRatio * exportRatio * (3 - 2 * exportRatio);
+      const curY = nucY + (cytoY - nucY) * easeExport;
+      const gap = inW * (1 - spliceRatio);
+
+      // エキソン1・エキソン2
+      const ex1X = midX - gap * 0.5 - exW;
+      const ex2X = midX + gap * 0.5;
+      drawSegmentBox(ex1X, curY - boxH * 0.5, exW, boxH, 'rgba(56, 189, 248, 0.25)', '#38bdf8', 'エキソン 1');
+      drawSegmentBox(ex2X, curY - boxH * 0.5, exW, boxH, 'rgba(56, 189, 248, 0.25)', '#38bdf8', 'エキソン 2');
+
+      // 切除されて上に浮き上がるイントロン
+      if (spliceRatio < 0.98) {
+        const intronY = nucY - spliceRatio * 48;
+        ctx.save();
+        ctx.globalAlpha = 1 - spliceRatio;
+        drawSegmentBox(midX - inW * 0.5, intronY - boxH * 0.5, inW, boxH, 'rgba(251, 113, 133, 0.25)', '#fb7185', 'イントロン（切除）');
+        ctx.restore();
+      }
+
+      // 5'キャップとポリAテールの付加
+      if (spliceRatio > 0.35) {
+        const capAlpha = Math.min(1, (spliceRatio - 0.35) / 0.4);
+        ctx.save();
+        ctx.globalAlpha = capAlpha;
+        drawSegmentBox(ex1X - 58, curY - 12, 52, 24, 'rgba(251, 191, 36, 0.28)', '#fbbf24', "5'Cap");
+        drawSegmentBox(ex2X + exW + 6, curY - 12, 58, 24, 'rgba(251, 191, 36, 0.28)', '#fbbf24', 'Poly-A');
+        ctx.restore();
+      }
+    }
+
+    function drawTranslationStage() {
+      const preset = getCurrentPreset();
+      const codons = preset.codons;
+      const stopIdx = getStopCodonIndex(preset);
+      const rawStep = Math.max(0, state.progress - TIMELINE.exportEnd);
+      const clampedStep = Math.min(stopIdx, rawStep);
+      const activeIdx = getCurrentCodonIndex();
+
+      const mrnaY = canvasHeight * 0.77;
+      const marginX = Math.max(66, canvasWidth * 0.11);
+      const usableW = canvasWidth - marginX * 2;
+      const slotW = usableW / codons.length;
+      const riboX = marginX + (clampedStep + 0.5) * slotW;
+      const isDone = state.phase === 'completed';
+      const splitOffset = isDone ? 18 : 0;
+
+      // リボソーム（大サブユニット＆小サブユニット）
+      ctx.save();
+      ctx.fillStyle = 'rgba(167, 139, 250, 0.22)';
+      ctx.strokeStyle = 'rgba(167, 139, 250, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(riboX, mrnaY - 46 - splitOffset, 68, 42, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(167, 139, 250, 0.16)';
+      ctx.beginPath();
+      ctx.ellipse(riboX, mrnaY + 26 + splitOffset, 56, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ddd6fe';
+      ctx.font = 'bold 11px Noto Sans JP, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('リボソーム', riboX, mrnaY + 58 + splitOffset);
+      ctx.restore();
+
+      // mRNA骨格ライン＋5'Cap / Poly-A
+      ctx.save();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(marginX - 18, mrnaY);
+      ctx.lineTo(canvasWidth - marginX + 18, mrnaY);
+      ctx.stroke();
+      drawSegmentBox(marginX - 60, mrnaY - 11, 44, 22, 'rgba(251, 191, 36, 0.28)', '#fbbf24', 'Cap');
+      drawSegmentBox(canvasWidth - marginX + 16, mrnaY - 11, 50, 22, 'rgba(251, 191, 36, 0.28)', '#fbbf24', 'PolyA');
+      ctx.restore();
+
+      // 各コドンの描画
+      for (let i = 0; i < codons.length; i++) {
+        const cx = marginX + (i + 0.5) * slotW;
+        const codon = codons[i];
+        const isCurrent = i === activeIdx && !isDone;
+        const boxW = Math.min(62, slotW - 8);
+
+        ctx.save();
+        ctx.fillStyle = isCurrent ? 'rgba(52, 211, 153, 0.28)' : 'rgba(13, 25, 34, 0.92)';
+        ctx.strokeStyle = isCurrent ? '#34d399' : 'rgba(148, 163, 184, 0.45)';
+        ctx.lineWidth = isCurrent ? 2.4 : 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cx - boxW * 0.5, mrnaY - 14, boxW, 28, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        // 3塩基を色分け描画
+        ctx.font = 'bold 13px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let b = 0; b < 3; b++) {
+          const ch = codon.charAt(b);
+          ctx.fillStyle = BASE_COLORS[ch] || '#f8fafc';
+          ctx.fillText(ch, cx + (b - 1) * 13, mrnaY + 1);
+        }
+        ctx.restore();
+      }
+
+      // 現在のコドンに結合する tRNA
+      if (!isDone && activeIdx >= 0 && activeIdx <= stopIdx) {
+        const curCodon = codons[activeIdx];
+        const info = CODON_TABLE[curCodon];
+        const anti = getAnticodon(curCodon);
+        const bob = Math.sin(state.time * 5) * 2.5;
+
+        ctx.save();
+        if (info && !info.isStop) {
+          ctx.fillStyle = 'rgba(52, 211, 153, 0.22)';
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(riboX - 24, mrnaY - 68 + bob, 48, 36, 9);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ecfdf5';
+          ctx.font = 'bold 10px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('tRNA', riboX, mrnaY - 54 + bob);
+          ctx.fillStyle = '#34d399';
+          ctx.fillText(anti, riboX, mrnaY - 40 + bob);
+        } else {
+          drawSegmentBox(riboX - 42, mrnaY - 68 + bob, 84, 26, 'rgba(251, 113, 133, 0.3)', '#fb7185', '終止因子');
+        }
+        ctx.restore();
+      }
+
+      // 伸長するポリペプチド鎖（アミノ酸ビーズ）
+      const builtCount = Math.min(activeIdx + 1, stopIdx);
+      if (builtCount > 0) {
+        const floatUp = isDone ? 36 + Math.sin(state.time * 3) * 4 : 0;
+        const chainPts = [];
+        for (let k = 0; k < builtCount; k++) {
+          const offsetIdx = (builtCount - 1) - k;
+          const ax = riboX - offsetIdx * 34;
+          const ay = mrnaY - 94 - Math.sin(offsetIdx * 0.8 + state.time * 2.5) * 10 - offsetIdx * 6 - floatUp;
+          chainPts.push({ x: ax, y: ay, info: CODON_TABLE[codons[k]] });
+        }
+
+        // ペプチド結合ライン
+        ctx.save();
+        ctx.strokeStyle = 'rgba(241, 245, 249, 0.65)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let k = 0; k < chainPts.length; k++) {
+          if (k === 0) ctx.moveTo(chainPts[k].x, chainPts[k].y);
+          else ctx.lineTo(chainPts[k].x, chainPts[k].y);
+        }
+        ctx.stroke();
+
+        // アミノ酸ビーズ描画
+        for (let k = 0; k < chainPts.length; k++) {
+          const pt = chainPts[k];
+          const col = pt.info ? pt.info.color : '#34d399';
+          ctx.fillStyle = col;
+          ctx.strokeStyle = '#060d12';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#060d12';
+          ctx.font = 'bold 10px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pt.info ? pt.info.code : 'AA', pt.x, pt.y);
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawScene() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      drawCompartments();
+      drawCytoplasmParticles();
+
+      if (state.progress < TIMELINE.exportEnd) {
+        drawSplicingAndExport();
+      } else {
+        drawTranslationStage();
+      }
+    }
+    // --- [スプライシング・核外輸送・翻訳アニメーション描画JS] ここまで ---
+
+    // --- [メインループ・起動処理JS] ここから ---
+    let lastTs = 0;
+
+    function animate(ts) {
+      if (!lastTs) lastTs = ts;
+      const dt = Math.min(0.05, (ts - lastTs) / 1000);
+      lastTs = ts;
+      state.time += dt;
+
+      if (state.isPlaying) {
+        const maxP = getMaxProgress();
+        const rate = state.progress < TIMELINE.exportEnd ? 0.95 : 0.72;
+        state.progress += dt * rate * state.speed;
+        if (state.progress >= maxP) {
+          state.progress = maxP;
+          state.isPlaying = false;
+          showToast('翻訳が完了しました！ポリペプチド鎖が遊離しました');
+        }
+        updatePhaseUI();
+      }
+
+      drawScene();
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    updatePhaseUI();
+    requestAnimationFrame(animate);
+    // --- [メインループ・起動処理JS] ここまで ---
+
+    // === [新規機能追加エリアJS] 新しいJSブロックはこの真上に貼り付け ===
+  </script>
+</body>
+</html>
+<!-- === [PART 3 ここまで] 全パート完了 === -->
